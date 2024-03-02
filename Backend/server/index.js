@@ -8,42 +8,31 @@ const {
     verificarCredenciales,
 } = require("../utils/pg")
 
+const checkCredentials = require("../middlewares/checkCredentials")
+const verifyToken = require("../middlewares/verifyToken")
+const logRequests = require("../middlewares/logRequests")
+
 const app = express()
 
 app.use(express.json())
 app.use(cors())
+app.use(logRequests)
 
-const validarTokenMiddleware = (req, res, next) => {
-    const token = req.headers.authorization
-
-    if (!token) {
-        return res.status(401).json({ message: "Token no proporcionado" })
-    }
-
+app.post("/usuarios", checkCredentials, async (req, res) => {
     try {
-        const decoded = jwt.verify(token.split(" ")[1], "az_AZ")
-        req.emailUsuario = decoded.email
-        next()
-    } catch (error) {
-        return res.status(401).json({ message: "Token inválido" })
-    }
-}
-
-app.get("/usuarios", validarTokenMiddleware, async (req, res) => {
-    try {
-        const perfil = await obtenerRegistroEmail(req.emailUsuario)
-        res.json(perfil)
+        const usuario = req.body
+        await registrarUsuario(usuario)
+        res.status(201).json({ message: "Usuario registrado con éxito" })
     } catch (error) {
         console.error(error)
         res.status(error.code || 500).json(error)
     }
 })
 
-app.post("/usuarios", async (req, res) => {
+app.get("/usuarios", verifyToken, async (req, res) => {
     try {
-        const usuario = req.body
-        await registrarUsuario(usuario)
-        res.status(201).json({ message: "Usuario registrado con éxito" })
+        const perfil = await obtenerRegistroEmail(req.emailUsuario)
+        res.json(perfil)
     } catch (error) {
         console.error(error)
         res.status(error.code || 500).json(error)
